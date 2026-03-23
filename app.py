@@ -4,9 +4,15 @@ from io import BytesIO
 
 import pandas as pd
 import streamlit as st
-import plotly.express as px
 
-# دعم العربي في PDF بشكل اختياري
+# دعم الرسم البياني - اختياري
+try:
+    import plotly.express as px
+    PLOTLY_AVAILABLE = True
+except ImportError:
+    PLOTLY_AVAILABLE = False
+
+# دعم العربي في PDF - اختياري
 try:
     import arabic_reshaper
     from bidi.algorithm import get_display
@@ -14,14 +20,19 @@ try:
 except ImportError:
     ARABIC_SUPPORT = False
 
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.lib.units import cm
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_RIGHT, TA_CENTER
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
+# دعم PDF - اختياري
+try:
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.units import cm
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_RIGHT, TA_CENTER
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    PDF_AVAILABLE = True
+except ImportError:
+    PDF_AVAILABLE = False
 
 
 # =========================
@@ -42,16 +53,14 @@ SCHOOL_TOTALS_FILE = "school_totals.xlsx"
 LOGO_FILE = "logo.png"
 BANNER_FILE = "banner.png"
 
-# حطي واحد من هالخطوط داخل نفس مجلد المشروع
 ARABIC_FONT_CANDIDATES = [
     "Amiri-Regular.ttf",
     "NotoNaskhArabic-Regular.ttf",
     "Cairo-Regular.ttf"
-    "Simpo.ttf"
 ]
 
 # =========================
-# بيانات المشرف
+# بيانات التطبيق
 # =========================
 APP_TITLE = "استبانة أولياء الأمور 2025-2026"
 SCHOOL_NAME = "مدارس الكلية العلمية الإسلامية"
@@ -59,7 +68,7 @@ ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "mmmm"
 
 # =========================
-# الهوية البصرية
+# الألوان
 # =========================
 PRIMARY_COLOR = "#0B3D91"
 SECONDARY_COLOR = "#2563EB"
@@ -69,7 +78,7 @@ CARD_COLOR = "#FFFFFF"
 TEXT_COLOR = "#1F2937"
 
 # =========================
-# قوالب الاستبانات
+# قوالب الاستبانة
 # =========================
 SURVEY_TEMPLATES = {
     "E1": {
@@ -312,8 +321,41 @@ img {{
 .element-container, .stPlotlyChart {{
     direction: rtl !important;
 }}
+
+/* زر ولي الأمر */
+.big-button button {{
+    background: linear-gradient(135deg, #2563EB, #0B3D91) !important;
+    color: white !important;
+    font-size: 22px !important;
+    font-weight: 900 !important;
+    border-radius: 14px !important;
+    padding: 16px !important;
+    border: none !important;
+    transition: 0.3s;
+}}
+
+.big-button button:hover {{
+    transform: scale(1.04);
+}}
+
+/* زر تحليل الإدارة */
+.gold-button button {{
+    background: linear-gradient(135deg, #D4A017, #FFD700) !important;
+    color: #1F2937 !important;
+    font-size: 22px !important;
+    font-weight: 900 !important;
+    border-radius: 14px !important;
+    padding: 16px !important;
+    border: none !important;
+    transition: 0.3s;
+}}
+
+.gold-button button:hover {{
+    transform: scale(1.05);
+}}
 </style>
 """, unsafe_allow_html=True)
+
 
 # =========================
 # دوال مساعدة
@@ -323,10 +365,12 @@ def normalize_text(value):
         return ""
     return str(value).strip()
 
+
 def score_to_percentage(score):
     if pd.isna(score):
         return 0.0
     return round((float(score) / 5) * 100, 2)
+
 
 def ar_text(text):
     if pd.isna(text):
@@ -342,7 +386,11 @@ def ar_text(text):
 
     return text
 
+
 def register_arabic_font():
+    if not PDF_AVAILABLE:
+        return "Helvetica"
+
     for font_file in ARABIC_FONT_CANDIDATES:
         font_path = os.path.join(os.getcwd(), font_file)
         if os.path.exists(font_path):
@@ -353,15 +401,18 @@ def register_arabic_font():
                 continue
     return "Helvetica"
 
+
 def get_student_survey_type(student):
     survey_type = normalize_text(student.get("survey_type", "E1"))
     if survey_type not in SURVEY_TEMPLATES:
         survey_type = list(SURVEY_TEMPLATES.keys())[0]
     return survey_type
 
+
 def get_survey_questions_by_student(student):
     survey_type = get_student_survey_type(student)
     return SURVEY_TEMPLATES[survey_type]
+
 
 def get_max_questions_count():
     max_count = 0
@@ -370,44 +421,52 @@ def get_max_questions_count():
         max_count = max(max_count, count)
     return max_count
 
+
 def get_max_axes_count():
     max_axes = 0
     for template in SURVEY_TEMPLATES.values():
         max_axes = max(max_axes, len(template.keys()))
     return max_axes
 
+
 def render_bar_chart(df, x_col, y_col, title, color_col=None):
     if df.empty:
         return
 
-    fig = px.bar(
-        df,
-        x=x_col,
-        y=y_col,
-        color=color_col if color_col else None,
-        text=y_col,
-        title=title,
-        barmode="group"
-    )
+    if PLOTLY_AVAILABLE:
+        fig = px.bar(
+            df,
+            x=x_col,
+            y=y_col,
+            color=color_col if color_col else None,
+            text=y_col,
+            title=title,
+            barmode="group"
+        )
+        fig.update_traces(textposition="outside", cliponaxis=False)
+        fig.update_layout(
+            height=520,
+            xaxis_title="",
+            yaxis_title=y_col,
+            font=dict(size=16),
+            title=dict(font=dict(size=22)),
+            xaxis=dict(tickfont=dict(size=15)),
+            yaxis=dict(tickfont=dict(size=15)),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            margin=dict(l=20, r=20, t=60, b=80),
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        chart_df = df[[x_col, y_col]].copy()
+        chart_df = chart_df.set_index(x_col)
+        st.bar_chart(chart_df, use_container_width=True)
 
-    fig.update_traces(textposition="outside", cliponaxis=False)
-
-    fig.update_layout(
-        height=520,
-        xaxis_title="",
-        yaxis_title=y_col,
-        font=dict(size=16),
-        title=dict(font=dict(size=22)),
-        xaxis=dict(tickfont=dict(size=15)),
-        yaxis=dict(tickfont=dict(size=15)),
-        plot_bgcolor="white",
-        paper_bgcolor="white",
-        margin=dict(l=20, r=20, t=60, b=80),
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
 
 def build_pdf_report_bytes(filtered_df, axis_summary_df, question_summary_df, school_summary_df):
+    if not PDF_AVAILABLE:
+        raise RuntimeError("مكتبة PDF غير متوفرة")
+
     output = BytesIO()
     font_name = register_arabic_font()
 
@@ -508,7 +567,6 @@ def build_pdf_report_bytes(filtered_df, axis_summary_df, question_summary_df, sc
         col_widths = [col_width] * num_cols
 
         tbl = Table(data, colWidths=col_widths, repeatRows=1)
-
         tbl.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0B3D91")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
@@ -578,6 +636,7 @@ def build_pdf_report_bytes(filtered_df, axis_summary_df, question_summary_df, sc
     output.seek(0)
     return output.getvalue()
 
+
 # =========================
 # Session State
 # =========================
@@ -599,6 +658,7 @@ def init_session():
         if key not in st.session_state:
             st.session_state[key] = value
 
+
 def reset_parent_session():
     st.session_state.logged_in_parent = False
     st.session_state.student_data = None
@@ -611,9 +671,11 @@ def reset_parent_session():
     st.session_state.contact_phone = ""
     st.session_state.page = "home"
 
+
 def reset_admin_session():
     st.session_state.logged_in_admin = False
     st.session_state.page = "home"
+
 
 # =========================
 # Header
@@ -634,6 +696,7 @@ def render_header():
     with left_col:
         st.markdown(f'<div class="main-title">{APP_TITLE}</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="sub-title">{SCHOOL_NAME}</div>', unsafe_allow_html=True)
+
 
 # =========================
 # تحميل الملفات
@@ -672,6 +735,7 @@ def ensure_results_file_exists():
 
         pd.DataFrame(columns=columns).to_excel(RESULTS_FILE, index=False)
 
+
 def load_students():
     if not os.path.exists(STUDENTS_FILE):
         return None, f"ملف الطلاب غير موجود: {STUDENTS_FILE}"
@@ -694,6 +758,7 @@ def load_students():
     except Exception as e:
         return None, f"حدث خطأ أثناء قراءة ملف الطلاب: {e}"
 
+
 def load_results():
     ensure_results_file_exists()
     try:
@@ -701,6 +766,7 @@ def load_results():
         return df, None
     except Exception as e:
         return None, f"حدث خطأ أثناء قراءة ملف النتائج: {e}"
+
 
 def load_school_totals():
     if not os.path.exists(SCHOOL_TOTALS_FILE):
@@ -721,6 +787,7 @@ def load_school_totals():
     except Exception as e:
         return None, f"حدث خطأ أثناء قراءة ملف أعداد الطلبة: {e}"
 
+
 def student_already_submitted(student_id):
     df, error = load_results()
     if error or df is None or df.empty or "student_id" not in df.columns:
@@ -728,6 +795,7 @@ def student_already_submitted(student_id):
 
     df["student_id"] = df["student_id"].astype(str).str.strip()
     return str(student_id).strip() in df["student_id"].values
+
 
 # =========================
 # المتوسطات
@@ -746,6 +814,7 @@ def get_axis_average(student, axis_name):
         return 0.0
     return round(sum(scores) / len(scores), 2)
 
+
 def get_overall_average(student):
     current_survey_questions = get_survey_questions_by_student(student)
     all_questions = [q for axis in current_survey_questions.values() for q in axis]
@@ -759,6 +828,7 @@ def get_overall_average(student):
     if not scores:
         return 0.0
     return round(sum(scores) / len(scores), 2)
+
 
 # =========================
 # حفظ النتائج
@@ -814,6 +884,7 @@ def save_survey():
     except Exception as e:
         return False, f"حدث خطأ أثناء حفظ النتائج: {e}"
 
+
 # =========================
 # التحليل
 # =========================
@@ -825,6 +896,7 @@ def dataframe_to_excel_bytes(df_dict):
             df.to_excel(writer, index=False, sheet_name=safe_name)
     output.seek(0)
     return output.getvalue()
+
 
 def build_question_summary(filtered_df):
     if filtered_df.empty:
@@ -861,6 +933,7 @@ def build_question_summary(filtered_df):
 
     return pd.DataFrame(rows)
 
+
 def build_axis_summary(filtered_df):
     if filtered_df.empty:
         return pd.DataFrame(columns=["المحور", "المتوسط", "النسبة المئوية"])
@@ -889,6 +962,7 @@ def build_axis_summary(filtered_df):
         })
 
     return pd.DataFrame(rows)
+
 
 def build_school_summary(df):
     if "school" not in df.columns or df.empty:
@@ -961,6 +1035,7 @@ def build_school_summary(df):
         "النسبة المئوية"
     ]]
 
+
 # =========================
 # الصفحات
 # =========================
@@ -976,27 +1051,32 @@ def render_home():
 
     with col1:
         st.markdown(f"""
-        <div class="section-card" style="border-top: 5px solid {PRIMARY_COLOR}; min-height: 180px; text-align:right;">
+        <div class="section-card" style="border-top: 5px solid {PRIMARY_COLOR}; min-height: 200px;">
             <div class="axis-title">دخول ولي الأمر</div>
             <div>لتعبئة الاستبانة باستخدام رقم الطالب والباسوورد.</div>
         </div>
         """, unsafe_allow_html=True)
 
+        st.markdown('<div class="big-button">', unsafe_allow_html=True)
         if st.button("فتح صفحة ولي الأمر", key="parent_btn", use_container_width=True):
             st.session_state.page = "parent_login"
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with col2:
         st.markdown(f"""
-        <div class="section-card" style="border-top: 5px solid {ACCENT_COLOR}; min-height: 180px; text-align:right;">
-            <div class="axis-title">دخول المشرف / الإدارة</div>
-            <div>لعرض النتائج والتحليل وتنزيل الملفات.</div>
+        <div class="section-card" style="border-top: 5px solid {ACCENT_COLOR}; min-height: 200px;">
+            <div class="axis-title">تحليل الإدارة</div>
+            <div>لعرض النتائج، التحليل، والتقارير.</div>
         </div>
         """, unsafe_allow_html=True)
 
-        if st.button("فتح صفحة المشرف", key="admin_btn", use_container_width=True):
+        st.markdown('<div class="gold-button">', unsafe_allow_html=True)
+        if st.button("فتح صفحة تحليل الإدارة", key="admin_btn", use_container_width=True):
             st.session_state.page = "admin_login"
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
 
 def render_parent_login():
     render_header()
@@ -1047,6 +1127,7 @@ def render_parent_login():
         st.session_state.notes = ""
         st.session_state.page = "student_info"
         st.rerun()
+
 
 def render_student_info_page():
     student = st.session_state.student_data
@@ -1111,6 +1192,7 @@ def render_student_info_page():
 
             st.session_state.page = "survey"
             st.rerun()
+
 
 def render_survey_page():
     student = st.session_state.student_data
@@ -1214,10 +1296,11 @@ def render_survey_page():
                 else:
                     st.error(msg)
 
+
 def render_admin_login():
     render_header()
     st.markdown(
-        '<div class="section-card"><div class="axis-title">دخول المشرف / الإدارة</div></div>',
+        '<div class="section-card"><div class="axis-title">دخول تحليل الإدارة</div></div>',
         unsafe_allow_html=True
     )
 
@@ -1236,19 +1319,20 @@ def render_admin_login():
             st.session_state.page = "admin_dashboard"
             st.rerun()
         else:
-            st.error("بيانات دخول المشرف غير صحيحة")
+            st.error("بيانات دخول تحليل الإدارة غير صحيحة")
+
 
 def render_admin_dashboard():
     render_header()
     st.markdown(
-        '<div class="section-card"><div class="axis-title">لوحة المشرف / التحليل</div></div>',
+        '<div class="section-card"><div class="axis-title">لوحة تحليل الإدارة</div></div>',
         unsafe_allow_html=True
     )
 
     top1, top2 = st.columns([1, 1])
 
     with top1:
-        if st.button("تسجيل خروج المشرف"):
+        if st.button("تسجيل خروج"):
             reset_admin_session()
             st.rerun()
 
@@ -1379,15 +1463,16 @@ def render_admin_dashboard():
     pdf_bytes = None
     pdf_error = None
 
-    try:
-        pdf_bytes = build_pdf_report_bytes(
-            filtered_df=filtered_df,
-            axis_summary_df=axis_summary_df,
-            question_summary_df=question_summary_df,
-            school_summary_df=school_summary_df
-        )
-    except Exception as e:
-        pdf_error = str(e)
+    if PDF_AVAILABLE:
+        try:
+            pdf_bytes = build_pdf_report_bytes(
+                filtered_df=filtered_df,
+                axis_summary_df=axis_summary_df,
+                question_summary_df=question_summary_df,
+                school_summary_df=school_summary_df
+            )
+        except Exception as e:
+            pdf_error = str(e)
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -1433,9 +1518,12 @@ def render_admin_dashboard():
                 use_container_width=True
             )
         else:
-            st.warning("تعذر إنشاء PDF")
-            if pdf_error:
-                st.caption(pdf_error)
+            st.button("تنزيل التقرير PDF", disabled=True, use_container_width=True)
+            if PDF_AVAILABLE and pdf_error:
+                st.caption("تعذر إنشاء PDF")
+            elif not PDF_AVAILABLE:
+                st.caption("مكتبة PDF غير متوفرة")
+
 
 # =========================
 # التشغيل
