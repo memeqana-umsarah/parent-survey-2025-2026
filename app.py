@@ -1257,7 +1257,7 @@ def render_student_info_page():
         unsafe_allow_html=True
     )
 
-    respondent_options = ["الأم", "الأب", "الاثنان معًا"]
+    respondent_options = ["الأم", "الأب", "الاثنان معًا", "أخرى"]
     previous_respondent = st.session_state.respondent_type
     respondent_index = respondent_options.index(previous_respondent) if previous_respondent in respondent_options else 0
 
@@ -1656,4 +1656,3 @@ elif st.session_state.page == "admin_login":
     render_admin_login()
 elif st.session_state.page == "admin_dashboard":
     render_admin_dashboard()
-    
