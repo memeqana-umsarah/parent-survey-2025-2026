@@ -328,13 +328,11 @@ img {{
     justify-content: center;
 }}
 
-/* حاوية الزر */
 .big-button-wrap {{
     margin-top: 10px;
     margin-bottom: 14px;
 }}
 
-/* زر ولي الأمر */
 div.big-parent-btn > div > button,
 div.big-parent-btn button {{
     width: 100% !important;
@@ -357,7 +355,6 @@ div.big-parent-btn button:hover {{
     border: 3px solid #061B3D !important;
 }}
 
-/* زر تحليل الإدارة */
 div.big-admin-btn > div > button,
 div.big-admin-btn button {{
     width: 100% !important;
@@ -1165,7 +1162,7 @@ def render_home():
     render_header()
 
     st.markdown(
-        '<div class="section-card" style="text-align:right;">اختر نوع الدخول المناسب</div>',
+        '<div class="section-card" style="text-align:right; font-size:24px; font-weight:800;">اختر نوع الدخول المناسب</div>',
         unsafe_allow_html=True
     )
 
@@ -1175,11 +1172,13 @@ def render_home():
         st.markdown(f"""
         <div class="section-card home-card" style="border-top: 6px solid {PRIMARY_COLOR};">
             <div class="axis-title">دخول ولي الأمر</div>
-            <div style="font-size:20px; font-weight:700;">لتعبئة الاستبانة باستخدام رقم الطالب والباسوورد </div>
+            <div style="font-size:20px; font-weight:700;">
+                لتعبئة الاستبانة باستخدام رقم الطالب والباسوورد
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
-        st.markdown('<div class="parent-hero-button">', unsafe_allow_html=True)
+        st.markdown('<div class="big-button-wrap big-parent-btn">', unsafe_allow_html=True)
         if st.button("فتح صفحة ولي الأمر", key="parent_btn", use_container_width=True):
             st.session_state.page = "parent_login"
             st.rerun()
@@ -1189,11 +1188,13 @@ def render_home():
         st.markdown(f"""
         <div class="section-card home-card" style="border-top: 6px solid {ACCENT_COLOR};">
             <div class="axis-title">تحليل الإدارة</div>
-            <div style="font-size:20px; font-weight:700;">لعرض النتائج، التحليل، والتقارير </div>
+            <div style="font-size:20px; font-weight:700;">
+                لعرض النتائج والتحليل والتقارير
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
-        st.markdown('<div class="admin-hero-button">', unsafe_allow_html=True)
+        st.markdown('<div class="big-button-wrap big-admin-btn">', unsafe_allow_html=True)
         if st.button("فتح صفحة تحليل الإدارة", key="admin_btn", use_container_width=True):
             st.session_state.page = "admin_login"
             st.rerun()
@@ -1273,7 +1274,7 @@ def render_student_info_page():
         unsafe_allow_html=True
     )
 
-    respondent_options = ["الأم", "الأب", "الاثنان معًا", "أخرى"]
+    respondent_options = ["الأم", "الأب", "الاثنان معًا"]
     previous_respondent = st.session_state.respondent_type
     respondent_index = respondent_options.index(previous_respondent) if previous_respondent in respondent_options else 0
 
