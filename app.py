@@ -328,40 +328,56 @@ img {{
     justify-content: center;
 }}
 
-.parent-hero-button button {{
+/* حاوية الزر */
+.big-button-wrap {{
+    margin-top: 10px;
+    margin-bottom: 14px;
+}}
+
+/* زر ولي الأمر */
+div.big-parent-btn > div > button,
+div.big-parent-btn button {{
+    width: 100% !important;
+    min-height: 95px !important;
+    font-size: 28px !important;
+    font-weight: 900 !important;
+    border-radius: 22px !important;
+    border: 3px solid #082552 !important;
     background: linear-gradient(135deg, #0A2F6B, #0B3D91) !important;
     color: white !important;
-    font-size: 24px !important;
+    box-shadow: 0 10px 24px rgba(11, 61, 145, 0.28) !important;
+    transition: all 0.25s ease-in-out !important;
+    letter-spacing: 0.3px;
+}}
+
+div.big-parent-btn > div > button:hover,
+div.big-parent-btn button:hover {{
+    transform: translateY(-2px) !important;
+    box-shadow: 0 14px 28px rgba(11, 61, 145, 0.38) !important;
+    border: 3px solid #061B3D !important;
+}}
+
+/* زر تحليل الإدارة */
+div.big-admin-btn > div > button,
+div.big-admin-btn button {{
+    width: 100% !important;
+    min-height: 95px !important;
+    font-size: 28px !important;
     font-weight: 900 !important;
-    border-radius: 18px !important;
-    padding: 20px 16px !important;
-    min-height: 74px !important;
-    border: 2px solid #082552 !important;
-    box-shadow: 0 8px 22px rgba(11, 61, 145, 0.30) !important;
-    transition: all 0.25s ease !important;
-}}
-
-.parent-hero-button button:hover {{
-    transform: translateY(-2px) scale(1.01);
-    box-shadow: 0 12px 26px rgba(11, 61, 145, 0.38) !important;
-}}
-
-.admin-hero-button button {{
+    border-radius: 22px !important;
+    border: 3px solid #A66F00 !important;
     background: linear-gradient(135deg, #C69214, #E3B73A) !important;
     color: #1F2937 !important;
-    font-size: 24px !important;
-    font-weight: 900 !important;
-    border-radius: 18px !important;
-    padding: 20px 16px !important;
-    min-height: 74px !important;
-    border: 2px solid #B68610 !important;
-    box-shadow: 0 8px 22px rgba(212, 160, 23, 0.28) !important;
-    transition: all 0.25s ease !important;
+    box-shadow: 0 10px 24px rgba(212, 160, 23, 0.28) !important;
+    transition: all 0.25s ease-in-out !important;
+    letter-spacing: 0.3px;
 }}
 
-.admin-hero-button button:hover {{
-    transform: translateY(-2px) scale(1.01);
-    box-shadow: 0 12px 26px rgba(212, 160, 23, 0.38) !important;
+div.big-admin-btn > div > button:hover,
+div.big-admin-btn button:hover {{
+    transform: translateY(-2px) !important;
+    box-shadow: 0 14px 28px rgba(212, 160, 23, 0.38) !important;
+    border: 3px solid #7C5400 !important;
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -1029,7 +1045,7 @@ def build_question_summary(filtered_df):
         axis_name = valid_rows[q_axis_col].dropna().astype(str).iloc[0] if q_axis_col in valid_rows.columns else ""
         avg_val = round(pd.to_numeric(valid_rows[col_name], errors="coerce").mean(), 2) if col_name in valid_rows.columns else 0
 
-        rows.append({
+                rows.append({
             "رقم الفقرة": q_num,
             "المحور": axis_name,
             "الفقرة": question_text,
