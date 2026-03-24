@@ -1045,7 +1045,7 @@ def build_question_summary(filtered_df):
         axis_name = valid_rows[q_axis_col].dropna().astype(str).iloc[0] if q_axis_col in valid_rows.columns else ""
         avg_val = round(pd.to_numeric(valid_rows[col_name], errors="coerce").mean(), 2) if col_name in valid_rows.columns else 0
 
-                rows.append({
+        rows.append({
             "رقم الفقرة": q_num,
             "المحور": axis_name,
             "الفقرة": question_text,
