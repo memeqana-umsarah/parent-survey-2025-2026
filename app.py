@@ -1175,7 +1175,7 @@ def render_home():
         st.markdown(f"""
         <div class="section-card home-card" style="border-top: 6px solid {PRIMARY_COLOR};">
             <div class="axis-title">دخول ولي الأمر</div>
-            <div style="font-size:20px; font-weight:700;">لتعبئة الاستبانة باستخدام رقم الطالب والباسوورد.</div>
+            <div style="font-size:20px; font-weight:700;">لتعبئة الاستبانة باستخدام رقم الطالب والباسوورد </div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1189,7 +1189,7 @@ def render_home():
         st.markdown(f"""
         <div class="section-card home-card" style="border-top: 6px solid {ACCENT_COLOR};">
             <div class="axis-title">تحليل الإدارة</div>
-            <div style="font-size:20px; font-weight:700;">لعرض النتائج، التحليل، والتقارير.</div>
+            <div style="font-size:20px; font-weight:700;">لعرض النتائج، التحليل، والتقارير </div>
         </div>
         """, unsafe_allow_html=True)
 
