@@ -118,7 +118,6 @@ SURVEY_TEMPLATES = {
             "هل ترغب في استمرار ابنك/ابنتك في هذه المدرسة؟",
         ]
     },
-
     "E2": {
         "المحور الأول: البيئة المدرسية": [
             "هل البيئة المدرسية مناسبة لطلاب المرحلة؟",
@@ -274,7 +273,7 @@ div[data-baseweb="select"] > div {{
     border-radius: 12px;
     font-weight: 800;
     border: none;
-    padding: 0.75rem 1rem;
+    padding: 0.85rem 1rem;
     font-size: 18px;
 }}
 
@@ -322,40 +321,50 @@ img {{
     direction: rtl !important;
 }}
 
-/* زر ولي الأمر */
-.big-button button {{
-    background: linear-gradient(135deg, #2563EB, #0B3D91) !important;
+.home-card {{
+    min-height: 210px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}}
+
+.parent-hero-button button {{
+    background: linear-gradient(135deg, #0A2F6B, #0B3D91) !important;
     color: white !important;
-    font-size: 22px !important;
+    font-size: 24px !important;
     font-weight: 900 !important;
-    border-radius: 14px !important;
-    padding: 16px !important;
-    border: none !important;
-    transition: 0.3s;
+    border-radius: 18px !important;
+    padding: 20px 16px !important;
+    min-height: 74px !important;
+    border: 2px solid #082552 !important;
+    box-shadow: 0 8px 22px rgba(11, 61, 145, 0.30) !important;
+    transition: all 0.25s ease !important;
 }}
 
-.big-button button:hover {{
-    transform: scale(1.04);
+.parent-hero-button button:hover {{
+    transform: translateY(-2px) scale(1.01);
+    box-shadow: 0 12px 26px rgba(11, 61, 145, 0.38) !important;
 }}
 
-/* زر تحليل الإدارة */
-.gold-button button {{
-    background: linear-gradient(135deg, #D4A017, #FFD700) !important;
+.admin-hero-button button {{
+    background: linear-gradient(135deg, #C69214, #E3B73A) !important;
     color: #1F2937 !important;
-    font-size: 22px !important;
+    font-size: 24px !important;
     font-weight: 900 !important;
-    border-radius: 14px !important;
-    padding: 16px !important;
-    border: none !important;
-    transition: 0.3s;
+    border-radius: 18px !important;
+    padding: 20px 16px !important;
+    min-height: 74px !important;
+    border: 2px solid #B68610 !important;
+    box-shadow: 0 8px 22px rgba(212, 160, 23, 0.28) !important;
+    transition: all 0.25s ease !important;
 }}
 
-.gold-button button:hover {{
-    transform: scale(1.05);
+.admin-hero-button button:hover {{
+    transform: translateY(-2px) scale(1.01);
+    box-shadow: 0 12px 26px rgba(212, 160, 23, 0.38) !important;
 }}
 </style>
 """, unsafe_allow_html=True)
-
 
 # =========================
 # دوال مساعدة
@@ -429,6 +438,52 @@ def get_max_axes_count():
     return max_axes
 
 
+def get_satisfaction_category(pct):
+    if pct >= 90:
+        return "مرتفع جدًا"
+    elif pct >= 80:
+        return "مرتفع"
+    elif pct >= 70:
+        return "متوسط"
+    elif pct >= 60:
+        return "مقبول"
+    return "منخفض"
+
+
+def build_summary_paragraph(selected_school_label, responses_count, overall_pct, axis_summary_df):
+    category = get_satisfaction_category(overall_pct)
+
+    if selected_school_label == "جميع المدارس":
+        school_phrase = "من جميع المدارس"
+    else:
+        school_phrase = f"من مدرسة {selected_school_label}"
+
+    summary = (
+        f"لقد وصلنا {responses_count} استبانة {school_phrase}، "
+        f"وبلغ المتوسط الكلي ({overall_pct:.1f}) وهو في فئة الرضا {category}."
+    )
+
+    if axis_summary_df is not None and not axis_summary_df.empty:
+        best_row = axis_summary_df.sort_values("النسبة المئوية", ascending=False).iloc[0]
+        worst_row = axis_summary_df.sort_values("النسبة المئوية", ascending=True).iloc[0]
+
+        best_axis = str(best_row["المحور"])
+        best_pct = float(best_row["النسبة المئوية"])
+        best_cat = get_satisfaction_category(best_pct)
+
+        worst_axis = str(worst_row["المحور"])
+        worst_pct = float(worst_row["النسبة المئوية"])
+        worst_cat = get_satisfaction_category(worst_pct)
+
+        summary += (
+            f" أما أعلى المحاور فقد بلغ محور {best_axis} نسبة ({best_pct:.1f}) وهو في فئة الرضا {best_cat}، "
+            f"بينما بلغ أدنى المحاور محور {worst_axis} نسبة ({worst_pct:.1f}) وهو في فئة الرضا {worst_cat}، "
+            f"ويرجى من المدرسة المحافظة على جوانب القوة والعمل على رفع رضا الأهالي في المحاور الأقل."
+        )
+
+    return summary
+
+
 def render_bar_chart(df, x_col, y_col, title, color_col=None):
     if df.empty:
         return
@@ -463,7 +518,32 @@ def render_bar_chart(df, x_col, y_col, title, color_col=None):
         st.bar_chart(chart_df, use_container_width=True)
 
 
-def build_pdf_report_bytes(filtered_df, axis_summary_df, question_summary_df, school_summary_df):
+def build_axis_detail_sections(question_summary_df):
+    sections = []
+
+    if question_summary_df is None or question_summary_df.empty:
+        return sections
+
+    grouped = question_summary_df.groupby("المحور", dropna=False)
+
+    for axis_name, axis_df in grouped:
+        work_df = axis_df.copy()
+        work_df = work_df[["الفقرة", "المتوسط", "النسبة المئوية"]].reset_index(drop=True)
+        work_df.insert(0, "رقم", range(1, len(work_df) + 1))
+        sections.append((str(axis_name), work_df))
+
+    return sections
+
+
+def build_pdf_report_bytes(
+    filtered_df,
+    axis_summary_df,
+    question_summary_df,
+    school_summary_df,
+    report_title="تقرير نتائج استبانة أولياء الأمور",
+    selected_school_label="جميع المدارس",
+    selected_survey_type_label="جميع الأنواع"
+):
     if not PDF_AVAILABLE:
         raise RuntimeError("مكتبة PDF غير متوفرة")
 
@@ -496,7 +576,8 @@ def build_pdf_report_bytes(filtered_df, axis_summary_df, question_summary_df, sc
         fontName=font_name,
         fontSize=13,
         leading=18,
-        alignment=TA_RIGHT
+        alignment=TA_RIGHT,
+        textColor=colors.HexColor("#8A5A00")
     )
 
     normal_style = ParagraphStyle(
@@ -504,8 +585,18 @@ def build_pdf_report_bytes(filtered_df, axis_summary_df, question_summary_df, sc
         parent=styles["BodyText"],
         fontName=font_name,
         fontSize=9,
-        leading=12,
+        leading=14,
         alignment=TA_RIGHT
+    )
+
+    summary_style = ParagraphStyle(
+        name="ArabicSummary",
+        parent=styles["BodyText"],
+        fontName=font_name,
+        fontSize=12,
+        leading=18,
+        alignment=TA_RIGHT,
+        textColor=colors.HexColor("#7A0000")
     )
 
     elements = []
@@ -519,14 +610,34 @@ def build_pdf_report_bytes(filtered_df, axis_summary_df, question_summary_df, sc
         except Exception:
             pass
 
-    elements.append(Paragraph(ar_text("تقرير نتائج استبانة أولياء الأمور"), title_style))
-    elements.append(Spacer(1, 0.3 * cm))
+    elements.append(Paragraph(ar_text(report_title), title_style))
+    elements.append(Spacer(1, 0.2 * cm))
+    elements.append(
+        Paragraph(
+            ar_text(f"المدرسة المحددة: {selected_school_label} | نوع الاستبانة: {selected_survey_type_label}"),
+            normal_style
+        )
+    )
     elements.append(
         Paragraph(ar_text(f"تاريخ التصدير: {datetime.now().strftime('%Y-%m-%d %H:%M')}"), normal_style)
     )
-    elements.append(Spacer(1, 0.4 * cm))
+    elements.append(Spacer(1, 0.25 * cm))
 
-    def shorten_text(value, max_len=35):
+    responses_count = len(filtered_df) if filtered_df is not None else 0
+    overall_pct = 0.0
+    if filtered_df is not None and not filtered_df.empty and "overall_pct" in filtered_df.columns:
+        overall_pct = round(pd.to_numeric(filtered_df["overall_pct"], errors="coerce").mean(), 1)
+
+    summary_paragraph = build_summary_paragraph(
+        selected_school_label=selected_school_label,
+        responses_count=responses_count,
+        overall_pct=overall_pct,
+        axis_summary_df=axis_summary_df
+    )
+    elements.append(Paragraph(ar_text(summary_paragraph), summary_style))
+    elements.append(Spacer(1, 0.45 * cm))
+
+    def shorten_text(value, max_len=70):
         if pd.isna(value):
             return ""
         value = str(value)
@@ -534,7 +645,7 @@ def build_pdf_report_bytes(filtered_df, axis_summary_df, question_summary_df, sc
             return value[:max_len] + "..."
         return value
 
-    def make_table_from_df(df, title, selected_cols=None, max_rows=20):
+    def make_table_from_df(df, title, selected_cols=None, max_rows=20, col_widths=None, font_size=8):
         if df is None or df.empty:
             return
 
@@ -549,10 +660,10 @@ def build_pdf_report_bytes(filtered_df, axis_summary_df, question_summary_df, sc
         work_df = work_df.head(max_rows).fillna("")
 
         for col in work_df.columns:
-            work_df[col] = work_df[col].apply(lambda x: shorten_text(x, 40))
+            work_df[col] = work_df[col].apply(lambda x: shorten_text(x, 90 if col == "الفقرة" else 40))
 
         elements.append(Paragraph(ar_text(title), heading_style))
-        elements.append(Spacer(1, 0.2 * cm))
+        elements.append(Spacer(1, 0.15 * cm))
 
         headers = [Paragraph(ar_text(col), normal_style) for col in work_df.columns]
         data = [headers]
@@ -561,20 +672,21 @@ def build_pdf_report_bytes(filtered_df, axis_summary_df, question_summary_df, sc
             row_cells = [Paragraph(ar_text(val), normal_style) for val in row]
             data.append(row_cells)
 
-        page_width = 27 * cm
-        num_cols = len(work_df.columns)
-        col_width = page_width / max(num_cols, 1)
-        col_widths = [col_width] * num_cols
+        if col_widths is None:
+            page_width = 27 * cm
+            num_cols = len(work_df.columns)
+            col_width = page_width / max(num_cols, 1)
+            col_widths = [col_width] * num_cols
 
         tbl = Table(data, colWidths=col_widths, repeatRows=1)
         tbl.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0B3D91")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("FONTNAME", (0, 0), (-1, -1), font_name),
-            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("FONTSIZE", (0, 0), (-1, -1), font_size),
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
+            ("GRID", (0, 0), (-1, -1), 0.45, colors.HexColor("#7F7F7F")),
             ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.whitesmoke, colors.HexColor("#F8FAFC")]),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
             ("TOPPADDING", (0, 0), (-1, -1), 5),
@@ -583,18 +695,20 @@ def build_pdf_report_bytes(filtered_df, axis_summary_df, question_summary_df, sc
         ]))
 
         elements.append(tbl)
-        elements.append(Spacer(1, 0.4 * cm))
+        elements.append(Spacer(1, 0.35 * cm))
 
     make_table_from_df(
         axis_summary_df,
         "ملخص متوسطات المحاور",
         selected_cols=["المحور", "المتوسط", "النسبة المئوية"],
-        max_rows=15
+        max_rows=15,
+        col_widths=[15 * cm, 5.5 * cm, 6.5 * cm],
+        font_size=9
     )
 
     make_table_from_df(
         school_summary_df,
-        "ملخص المدارس",
+        "ملخص المدارس حسب الفلتر الحالي",
         selected_cols=[
             "اسم المدرسة",
             "نوع الاستبانة",
@@ -604,33 +718,25 @@ def build_pdf_report_bytes(filtered_df, axis_summary_df, question_summary_df, sc
             "المتوسط الكلي",
             "النسبة المئوية"
         ],
-        max_rows=20
+        max_rows=20,
+        col_widths=[6 * cm, 3.5 * cm, 3 * cm, 3 * cm, 3.2 * cm, 3.5 * cm, 4.8 * cm],
+        font_size=8
     )
 
-    make_table_from_df(
-        question_summary_df,
-        "ملخص الفقرات",
-        selected_cols=["رقم الفقرة", "المحور", "الفقرة", "المتوسط", "النسبة المئوية"],
-        max_rows=15
-    )
+    axis_sections = build_axis_detail_sections(question_summary_df)
+    if axis_sections:
+        elements.append(Paragraph(ar_text("وفيما يلي نورد متوسطات الفقرات لكل محور"), heading_style))
+        elements.append(Spacer(1, 0.2 * cm))
 
-    raw_pdf_cols = [
-        "student_id",
-        "student_name",
-        "school",
-        "survey_type",
-        "respondent_type",
-        "overall_avg",
-        "overall_pct",
-        "contact_phone"
-    ]
-
-    make_table_from_df(
-        filtered_df,
-        "النتائج الخام المختصرة",
-        selected_cols=raw_pdf_cols,
-        max_rows=20
-    )
+        for axis_title, axis_df in axis_sections:
+            make_table_from_df(
+                axis_df,
+                axis_title,
+                selected_cols=["رقم", "الفقرة", "المتوسط", "النسبة المئوية"],
+                max_rows=50,
+                col_widths=[2 * cm, 16 * cm, 4 * cm, 5 * cm],
+                font_size=8
+            )
 
     doc.build(elements)
     output.seek(0)
@@ -1051,13 +1157,13 @@ def render_home():
 
     with col1:
         st.markdown(f"""
-        <div class="section-card" style="border-top: 5px solid {PRIMARY_COLOR}; min-height: 200px;">
+        <div class="section-card home-card" style="border-top: 6px solid {PRIMARY_COLOR};">
             <div class="axis-title">دخول ولي الأمر</div>
-            <div>لتعبئة الاستبانة باستخدام رقم الطالب والباسوورد.</div>
+            <div style="font-size:20px; font-weight:700;">لتعبئة الاستبانة باستخدام رقم الطالب والباسوورد.</div>
         </div>
         """, unsafe_allow_html=True)
 
-        st.markdown('<div class="big-button">', unsafe_allow_html=True)
+        st.markdown('<div class="parent-hero-button">', unsafe_allow_html=True)
         if st.button("فتح صفحة ولي الأمر", key="parent_btn", use_container_width=True):
             st.session_state.page = "parent_login"
             st.rerun()
@@ -1065,13 +1171,13 @@ def render_home():
 
     with col2:
         st.markdown(f"""
-        <div class="section-card" style="border-top: 5px solid {ACCENT_COLOR}; min-height: 200px;">
+        <div class="section-card home-card" style="border-top: 6px solid {ACCENT_COLOR};">
             <div class="axis-title">تحليل الإدارة</div>
-            <div>لعرض النتائج، التحليل، والتقارير.</div>
+            <div style="font-size:20px; font-weight:700;">لعرض النتائج، التحليل، والتقارير.</div>
         </div>
         """, unsafe_allow_html=True)
 
-        st.markdown('<div class="gold-button">', unsafe_allow_html=True)
+        st.markdown('<div class="admin-hero-button">', unsafe_allow_html=True)
         if st.button("فتح صفحة تحليل الإدارة", key="admin_btn", use_container_width=True):
             st.session_state.page = "admin_login"
             st.rerun()
@@ -1384,8 +1490,10 @@ def render_admin_dashboard():
         return
 
     filtered_df["overall_avg"] = pd.to_numeric(filtered_df["overall_avg"], errors="coerce")
+    filtered_df["overall_pct"] = pd.to_numeric(filtered_df["overall_pct"], errors="coerce")
+
     overall_avg = round(filtered_df["overall_avg"].mean(), 2) if "overall_avg" in filtered_df.columns else 0
-    overall_pct = score_to_percentage(overall_avg)
+    overall_pct = round(filtered_df["overall_pct"].mean(), 1) if "overall_pct" in filtered_df.columns else 0
     responses_count = len(filtered_df)
     unique_schools = filtered_df["school"].nunique() if "school" in filtered_df.columns else 0
 
@@ -1412,8 +1520,8 @@ def render_admin_dashboard():
     question_summary_df = build_question_summary(filtered_df)
     st.dataframe(question_summary_df, use_container_width=True, height=500)
 
-    st.markdown("## ملخص جميع المدارس")
-    school_summary_df = build_school_summary(results_df)
+    st.markdown("## ملخص المدارس")
+    school_summary_df = build_school_summary(filtered_df)
     school_summary_df = school_summary_df[
         ["اسم المدرسة", "نوع الاستبانة", "عدد الاستجابات", "عدد الطلبة الكلي", "نسبة الاستجابة", "المتوسط الكلي", "النسبة المئوية"]
     ]
@@ -1463,13 +1571,19 @@ def render_admin_dashboard():
     pdf_bytes = None
     pdf_error = None
 
+    safe_school = "all_schools" if selected_school == "جميع المدارس" else selected_school.replace(" ", "_")
+    safe_survey = "all_types" if selected_survey_type == "جميع الأنواع" else selected_survey_type.replace(" ", "_")
+
     if PDF_AVAILABLE:
         try:
             pdf_bytes = build_pdf_report_bytes(
                 filtered_df=filtered_df,
                 axis_summary_df=axis_summary_df,
                 question_summary_df=question_summary_df,
-                school_summary_df=school_summary_df
+                school_summary_df=school_summary_df,
+                report_title="تقرير نتائج استبانة أولياء الأمور",
+                selected_school_label=selected_school,
+                selected_survey_type_label=selected_survey_type
             )
         except Exception as e:
             pdf_error = str(e)
@@ -1480,7 +1594,7 @@ def render_admin_dashboard():
         st.download_button(
             label="تنزيل النتائج الخام Excel",
             data=dataframe_to_excel_bytes({"Results": filtered_df}),
-            file_name="filtered_results.xlsx",
+            file_name=f"filtered_results_{safe_school}_{safe_survey}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True
         )
@@ -1493,7 +1607,7 @@ def render_admin_dashboard():
                 "Question Summary": question_summary_df,
                 "School Summary": school_summary_df
             }),
-            file_name="analysis_summary.xlsx",
+            file_name=f"analysis_summary_{safe_school}_{safe_survey}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True
         )
@@ -1503,7 +1617,7 @@ def render_admin_dashboard():
         st.download_button(
             label="تنزيل النتائج CSV",
             data=csv_data,
-            file_name="filtered_results.csv",
+            file_name=f"filtered_results_{safe_school}_{safe_survey}.csv",
             mime="text/csv",
             use_container_width=True
         )
@@ -1513,7 +1627,7 @@ def render_admin_dashboard():
             st.download_button(
                 label="تنزيل التقرير PDF",
                 data=pdf_bytes,
-                file_name="survey_report.pdf",
+                file_name=f"survey_report_{safe_school}_{safe_survey}.pdf",
                 mime="application/pdf",
                 use_container_width=True
             )
