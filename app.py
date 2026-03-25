@@ -186,7 +186,6 @@ answer_score_map = {
     "غير موافق جدًا": 1
 }
 
-
 # =========================
 # CSS
 # =========================
@@ -346,11 +345,6 @@ img {{
     justify-content: center;
 }}
 
-.big-button-wrap {{
-    margin-top: 10px;
-    margin-bottom: 14px;
-}}
-
 div.big-parent-btn > div > button,
 div.big-parent-btn button {{
     width: 100% !important;
@@ -362,15 +356,6 @@ div.big-parent-btn button {{
     background: linear-gradient(135deg, {PARENT_BUTTON_LIGHT}, {PRIMARY_COLOR}) !important;
     color: white !important;
     box-shadow: 0 10px 24px rgba(11, 61, 145, 0.28) !important;
-    transition: all 0.25s ease-in-out !important;
-    letter-spacing: 0.3px;
-}}
-
-div.big-parent-btn > div > button:hover,
-div.big-parent-btn button:hover {{
-    transform: translateY(-2px) !important;
-    box-shadow: 0 14px 28px rgba(11, 61, 145, 0.38) !important;
-    border: 3px solid #061B3D !important;
 }}
 
 div.big-admin-btn > div > button,
@@ -384,15 +369,6 @@ div.big-admin-btn button {{
     background: linear-gradient(135deg, {ACCENT_COLOR}, #b28704) !important;
     color: #1b1b1b !important;
     box-shadow: 0 10px 24px rgba(212, 160, 23, 0.35) !important;
-    transition: all 0.25s ease-in-out !important;
-    letter-spacing: 0.3px;
-}}
-
-div.big-admin-btn > div > button:hover,
-div.big-admin-btn button:hover {{
-    transform: translateY(-2px) !important;
-    box-shadow: 0 14px 28px rgba(212, 160, 23, 0.42) !important;
-    border: 3px solid #6F5200 !important;
 }}
 
 .filter-card {{
@@ -405,7 +381,6 @@ div.big-admin-btn button:hover {{
 </style>
 """, unsafe_allow_html=True)
 
-
 # =========================
 # دوال مساعدة
 # =========================
@@ -414,12 +389,10 @@ def normalize_text(value):
         return ""
     return str(value).strip()
 
-
 def score_to_percentage(score):
     if pd.isna(score):
         return 0.0
     return round((float(score) / 5) * 100, 2)
-
 
 def ar_text(text):
     if pd.isna(text):
@@ -433,7 +406,6 @@ def ar_text(text):
         except Exception:
             return text
     return text
-
 
 def register_arabic_font():
     if not PDF_AVAILABLE:
@@ -450,13 +422,11 @@ def register_arabic_font():
                 continue
     return "Helvetica"
 
-
 def get_student_survey_type(student):
     survey_type = normalize_text(student.get("survey_type", "E1"))
     if survey_type not in SURVEY_TEMPLATES:
         survey_type = list(SURVEY_TEMPLATES.keys())[0]
     return survey_type
-
 
 def get_survey_questions_by_student(student):
     survey_type = get_student_survey_type(student)
@@ -467,7 +437,6 @@ def get_survey_questions_by_student(student):
 
     return questions
 
-
 def get_max_questions_count():
     max_count = 0
     for template in SURVEY_TEMPLATES.values():
@@ -475,18 +444,16 @@ def get_max_questions_count():
         max_count = max(max_count, count)
     return max_count
 
-
 def get_max_axes_count():
     max_axes = 0
     for template in SURVEY_TEMPLATES.values():
         max_axes = max(max_axes, len(template.keys()))
     return max_axes
 
-
 def render_bar_chart(df, x_col, y_col, title, color_col=None):
     if df.empty or not PLOTLY_AVAILABLE:
         if not PLOTLY_AVAILABLE:
-            st.info("مكتبة الرسوم البيانية Plotly غير متوفرة.")
+            st.info("مكتبة Plotly غير متوفرة.")
         return
 
     fig = px.bar(
@@ -516,7 +483,6 @@ def render_bar_chart(df, x_col, y_col, title, color_col=None):
 
     st.plotly_chart(fig, use_container_width=True)
 
-
 def dataframe_to_excel_bytes(df_dict):
     output = BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
@@ -526,7 +492,6 @@ def dataframe_to_excel_bytes(df_dict):
     output.seek(0)
     return output.getvalue()
 
-
 def shorten_text(value, max_len=40):
     if pd.isna(value):
         return ""
@@ -534,7 +499,6 @@ def shorten_text(value, max_len=40):
     if len(value) > max_len:
         return value[:max_len] + "..."
     return value
-
 
 def make_pdf_table(elements, df, title, normal_style, heading_style, font_name, selected_cols=None, max_rows=25):
     if df is None or df.empty:
@@ -587,7 +551,6 @@ def make_pdf_table(elements, df, title, normal_style, heading_style, font_name, 
 
     elements.append(tbl)
     elements.append(Spacer(1, 0.4 * cm))
-
 
 def build_pdf_report_bytes(
     filtered_df,
@@ -728,7 +691,6 @@ def build_pdf_report_bytes(
     output.seek(0)
     return output.getvalue()
 
-
 # =========================
 # Session State
 # =========================
@@ -753,7 +715,6 @@ def init_session():
         if key not in st.session_state:
             st.session_state[key] = value
 
-
 def reset_parent_session():
     st.session_state.logged_in_parent = False
     st.session_state.student_data = None
@@ -769,11 +730,9 @@ def reset_parent_session():
     st.session_state.bus_number = ""
     st.session_state.page = "home"
 
-
 def reset_admin_session():
     st.session_state.logged_in_admin = False
     st.session_state.page = "home"
-
 
 # =========================
 # Header
@@ -794,7 +753,6 @@ def render_header():
     with left_col:
         st.markdown(f'<div class="main-title">{APP_TITLE}</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="sub-title">{SCHOOL_NAME}</div>', unsafe_allow_html=True)
-
 
 # =========================
 # تحميل الملفات
@@ -836,7 +794,6 @@ def ensure_results_file_exists():
 
         pd.DataFrame(columns=columns).to_excel(RESULTS_FILE, index=False)
 
-
 def load_students():
     if not os.path.exists(STUDENTS_FILE):
         return None, f"ملف الطلاب غير موجود: {STUDENTS_FILE}"
@@ -859,7 +816,6 @@ def load_students():
     except Exception as e:
         return None, f"حدث خطأ أثناء قراءة ملف الطلاب: {e}"
 
-
 def load_results():
     ensure_results_file_exists()
     try:
@@ -867,7 +823,6 @@ def load_results():
         return df, None
     except Exception as e:
         return None, f"حدث خطأ أثناء قراءة ملف النتائج: {e}"
-
 
 def load_school_totals():
     if not os.path.exists(SCHOOL_TOTALS_FILE):
@@ -886,7 +841,6 @@ def load_school_totals():
     except Exception as e:
         return None, f"حدث خطأ أثناء قراءة ملف أعداد الطلبة: {e}"
 
-
 def student_already_submitted(student_id):
     df, error = load_results()
     if error or df is None or df.empty or "student_id" not in df.columns:
@@ -894,7 +848,6 @@ def student_already_submitted(student_id):
 
     df["student_id"] = df["student_id"].astype(str).str.strip()
     return str(student_id).strip() in df["student_id"].values
-
 
 # =========================
 # المتوسطات
@@ -913,7 +866,6 @@ def get_axis_average(student, axis_name):
         return 0.0
     return round(sum(scores) / len(scores), 2)
 
-
 def get_overall_average(student):
     current_survey_questions = get_survey_questions_by_student(student)
     all_questions = [q for axis in current_survey_questions.values() for q in axis]
@@ -927,7 +879,6 @@ def get_overall_average(student):
     if not scores:
         return 0.0
     return round(sum(scores) / len(scores), 2)
-
 
 # =========================
 # حفظ النتائج
@@ -986,7 +937,6 @@ def save_survey():
     except Exception as e:
         return False, f"حدث خطأ أثناء حفظ النتائج: {e}"
 
-
 # =========================
 # التحليل
 # =========================
@@ -1028,7 +978,6 @@ def build_question_summary(filtered_df):
 
     return pd.DataFrame(rows)
 
-
 def build_axis_summary(filtered_df):
     if filtered_df.empty:
         return pd.DataFrame(columns=["المحور", "المتوسط", "النسبة المئوية"])
@@ -1060,7 +1009,6 @@ def build_axis_summary(filtered_df):
         })
 
     return pd.DataFrame(rows)
-
 
 def build_school_summary(df):
     if "school" not in df.columns or df.empty:
@@ -1133,7 +1081,6 @@ def build_school_summary(df):
         "النسبة المئوية"
     ]]
 
-
 def build_transport_summary(filtered_df):
     if filtered_df.empty:
         return pd.DataFrame(columns=["عدد المشتركين بالنقل", "المتوسط", "النسبة المئوية"])
@@ -1144,6 +1091,7 @@ def build_transport_summary(filtered_df):
 
     axis_summary = build_axis_summary(subscribed_df)
     transport_axis = axis_summary[axis_summary["المحور"] == TRANSPORT_AXIS_NAME].copy()
+
     if transport_axis.empty:
         avg_val = 0
         pct_val = 0
@@ -1156,7 +1104,6 @@ def build_transport_summary(filtered_df):
         "المتوسط": round(avg_val, 2),
         "النسبة المئوية": round(pct_val, 2)
     }])
-
 
 def build_transport_question_summary(filtered_df):
     if filtered_df.empty:
@@ -1173,7 +1120,6 @@ def build_transport_question_summary(filtered_df):
         return pd.DataFrame(columns=["رقم الفقرة", "الفقرة", "المتوسط", "النسبة المئوية"])
 
     return question_summary[["رقم الفقرة", "الفقرة", "المتوسط", "النسبة المئوية"]].reset_index(drop=True)
-
 
 # =========================
 # الصفحات
@@ -1215,7 +1161,6 @@ def render_home():
             st.session_state.page = "admin_login"
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
-
 
 def render_parent_login():
     render_header()
@@ -1267,7 +1212,6 @@ def render_parent_login():
         st.session_state.page = "student_info"
         st.rerun()
 
-
 def render_student_info_page():
     student = st.session_state.student_data
     render_header()
@@ -1292,7 +1236,7 @@ def render_student_info_page():
 
     respondent_options = ["الأم", "الأب", "الاثنان معًا", "أخرى"]
     previous_respondent = st.session_state.respondent_type
-    respondent_index = respondent_options.index(previous_respondent) if previous_respondent in respondent_options else 0
+    respondent_index = respondent_options.index(previous_respondent) if previous_respondent in respondent_options else None
 
     st.session_state.respondent_type = st.radio(
         "من يقوم بتعبئة الاستبانة؟",
@@ -1313,10 +1257,16 @@ def render_student_info_page():
     st.session_state.mother_job = st.text_input("عمل الأم", value=st.session_state.mother_job)
     st.session_state.contact_phone = st.text_input("رقم الهاتف للتواصل", value=st.session_state.contact_phone)
 
+    transport_index = (
+        0 if st.session_state.transport_subscribed == "نعم"
+        else 1 if st.session_state.transport_subscribed == "لا"
+        else None
+    )
+
     st.session_state.transport_subscribed = st.radio(
         "هل الطالب/الطالبة مشترك في النقل المدرسي؟",
         ["نعم", "لا"],
-        index=0 if st.session_state.transport_subscribed != "لا" else 1,
+        index=transport_index,
         horizontal=True
     )
 
@@ -1366,7 +1316,6 @@ def render_student_info_page():
 
             st.session_state.page = "survey"
             st.rerun()
-
 
 def render_survey_page():
     student = st.session_state.student_data
@@ -1425,7 +1374,7 @@ def render_survey_page():
         answer = st.radio(
             label=f"{q_num}. {q}",
             options=answer_options,
-            index=answer_options.index(previous_answer) if previous_answer in answer_options else 0,
+            index=answer_options.index(previous_answer) if previous_answer in answer_options else None,
             key=f"radio_{axis_index}_{i}",
             horizontal=True
         )
@@ -1482,7 +1431,6 @@ def render_survey_page():
                 else:
                     st.error(msg)
 
-
 def render_admin_login():
     render_header()
     st.markdown(
@@ -1506,7 +1454,6 @@ def render_admin_login():
             st.rerun()
         else:
             st.error("بيانات دخول الإدارة غير صحيحة")
-
 
 def render_admin_dashboard():
     render_header()
@@ -1544,7 +1491,7 @@ def render_admin_dashboard():
     survey_types = sorted(results_df["survey_type"].dropna().astype(str).unique().tolist()) if "survey_type" in results_df.columns else []
 
     st.markdown('<div class="filter-card">', unsafe_allow_html=True)
-    f1, f2, f3 = st.columns(3)
+    f1, f2, f3, f4 = st.columns(4)
 
     with f1:
         selected_school = st.selectbox("اختر المدرسة", ["جميع المدارس"] + schools)
@@ -1553,9 +1500,12 @@ def render_admin_dashboard():
         selected_survey_type = st.selectbox("اختر نوع الاستبانة", ["جميع الأنواع"] + survey_types)
 
     with f3:
-        analysis_mode = st.selectbox(
-            "نوع العرض",
-            ["التحليل العام", "نتائج النقل فقط"]
+        analysis_mode = st.selectbox("نوع العرض", ["التحليل العام", "نتائج النقل فقط"])
+
+    with f4:
+        transport_filter = st.selectbox(
+            "حالة النقل",
+            ["جميع النتائج", "المشتركين بالنقل فقط", "غير المشتركين بالنقل فقط"]
         )
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1566,6 +1516,13 @@ def render_admin_dashboard():
 
     if selected_survey_type != "جميع الأنواع" and "survey_type" in filtered_df.columns:
         filtered_df = filtered_df[filtered_df["survey_type"].astype(str) == selected_survey_type]
+
+    if "transport_subscribed" in filtered_df.columns:
+        transport_series = filtered_df["transport_subscribed"].astype(str).str.strip()
+        if transport_filter == "المشتركين بالنقل فقط":
+            filtered_df = filtered_df[transport_series == "نعم"]
+        elif transport_filter == "غير المشتركين بالنقل فقط":
+            filtered_df = filtered_df[transport_series == "لا"]
 
     if filtered_df.empty:
         st.warning("لا توجد بيانات مطابقة للفلاتر المختارة.")
@@ -1749,7 +1706,10 @@ def render_admin_dashboard():
         m1.metric("عدد المشتركين بالنقل", len(transport_filtered_df))
         m2.metric("متوسط النقل", round(transport_avg, 2))
         m3.metric("النسبة المئوية", f"{round(transport_pct, 2)}%")
-        m4.metric("عدد الباصات المدخلة", transport_filtered_df["bus_number"].astype(str).str.strip().replace("", pd.NA).dropna().nunique())
+        m4.metric(
+            "عدد الباصات المدخلة",
+            transport_filtered_df["bus_number"].astype(str).str.strip().replace("", pd.NA).dropna().nunique()
+        )
 
         st.markdown("## ملخص النقل المدرسي")
         st.dataframe(transport_summary_df, use_container_width=True)
@@ -1879,7 +1839,6 @@ def render_admin_dashboard():
                     st.caption("تعذر إنشاء PDF")
                 elif not PDF_AVAILABLE:
                     st.caption("مكتبة PDF غير متوفرة")
-
 
 # =========================
 # التشغيل
