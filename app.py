@@ -4,8 +4,9 @@ from io import BytesIO
 
 import pandas as pd
 import streamlit as st
+import matplotlib.pyplot as plt
 
-# دعم الرسم البياني - اختياري
+# دعم الرسم البياني التفاعلي - اختياري
 try:
     import plotly.express as px
     PLOTLY_AVAILABLE = True
@@ -27,7 +28,9 @@ try:
     from reportlab.lib.units import cm
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.enums import TA_RIGHT, TA_CENTER
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+    from reportlab.platypus import (
+        SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, PageBreak
+    )
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
     PDF_AVAILABLE = True
@@ -128,7 +131,6 @@ SURVEY_TEMPLATES = {
             "شعورك بأمان الطالب/الطالبة أثناء استخدام الحافلة"
         ]
     },
-
     "E2": {
         "المحور الأول: البيئة المدرسية": [
             "هل البيئة المدرسية مناسبة لطلاب المرحلة؟",
@@ -389,10 +391,12 @@ def normalize_text(value):
         return ""
     return str(value).strip()
 
+
 def score_to_percentage(score):
     if pd.isna(score):
         return 0.0
     return round((float(score) / 5) * 100, 2)
+
 
 def ar_text(text):
     if pd.isna(text):
@@ -406,6 +410,7 @@ def ar_text(text):
         except Exception:
             return text
     return text
+
 
 def register_arabic_font():
     if not PDF_AVAILABLE:
@@ -422,11 +427,13 @@ def register_arabic_font():
                 continue
     return "Helvetica"
 
+
 def get_student_survey_type(student):
     survey_type = normalize_text(student.get("survey_type", "E1"))
     if survey_type not in SURVEY_TEMPLATES:
         survey_type = list(SURVEY_TEMPLATES.keys())[0]
     return survey_type
+
 
 def get_survey_questions_by_student(student):
     survey_type = get_student_survey_type(student)
@@ -437,6 +444,7 @@ def get_survey_questions_by_student(student):
 
     return questions
 
+
 def get_max_questions_count():
     max_count = 0
     for template in SURVEY_TEMPLATES.values():
@@ -444,11 +452,13 @@ def get_max_questions_count():
         max_count = max(max_count, count)
     return max_count
 
+
 def get_max_axes_count():
     max_axes = 0
     for template in SURVEY_TEMPLATES.values():
         max_axes = max(max_axes, len(template.keys()))
     return max_axes
+
 
 def render_bar_chart(df, x_col, y_col, title, color_col=None):
     if df.empty or not PLOTLY_AVAILABLE:
@@ -483,6 +493,7 @@ def render_bar_chart(df, x_col, y_col, title, color_col=None):
 
     st.plotly_chart(fig, use_container_width=True)
 
+
 def dataframe_to_excel_bytes(df_dict):
     output = BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
@@ -492,6 +503,7 @@ def dataframe_to_excel_bytes(df_dict):
     output.seek(0)
     return output.getvalue()
 
+
 def shorten_text(value, max_len=40):
     if pd.isna(value):
         return ""
@@ -499,6 +511,40 @@ def shorten_text(value, max_len=40):
     if len(value) > max_len:
         return value[:max_len] + "..."
     return value
+
+
+def create_chart_image_bytes(df, x_col, y_col, title, max_labels=12):
+    if df is None or df.empty or x_col not in df.columns or y_col not in df.columns:
+        return None
+
+    work_df = df.copy()
+
+    if len(work_df) > max_labels:
+        work_df = work_df.head(max_labels)
+
+    work_df[x_col] = work_df[x_col].astype(str)
+    work_df[y_col] = pd.to_numeric(work_df[y_col], errors="coerce").fillna(0)
+
+    fig, ax = plt.subplots(figsize=(12, 5))
+    ax.bar(work_df[x_col], work_df[y_col])
+
+    ax.set_title(title, fontsize=14)
+    ax.set_ylabel(y_col, fontsize=11)
+    ax.set_xlabel("")
+    ax.tick_params(axis="x", rotation=35, labelsize=9)
+    ax.tick_params(axis="y", labelsize=9)
+
+    for i, val in enumerate(work_df[y_col]):
+        ax.text(i, float(val) + 0.5, str(round(float(val), 2)), ha="center", va="bottom", fontsize=8)
+
+    plt.tight_layout()
+
+    img_buffer = BytesIO()
+    plt.savefig(img_buffer, format="png", dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    img_buffer.seek(0)
+    return img_buffer
+
 
 def make_pdf_table(elements, df, title, normal_style, heading_style, font_name, selected_cols=None, max_rows=25):
     if df is None or df.empty:
@@ -551,6 +597,50 @@ def make_pdf_table(elements, df, title, normal_style, heading_style, font_name, 
 
     elements.append(tbl)
     elements.append(Spacer(1, 0.4 * cm))
+
+
+def add_axis_details_to_pdf(elements, question_summary_df, normal_style, heading_style, font_name):
+    if question_summary_df is None or question_summary_df.empty:
+        return
+
+    grouped = question_summary_df.groupby("المحور", dropna=False)
+
+    for axis_name, axis_df in grouped:
+        axis_df = axis_df.copy().reset_index(drop=True)
+
+        elements.append(Paragraph(ar_text(f"تفصيل {axis_name}"), heading_style))
+        elements.append(Spacer(1, 0.15 * cm))
+
+        axis_table_df = axis_df[["رقم الفقرة", "الفقرة", "المتوسط", "النسبة المئوية"]].copy()
+
+        make_pdf_table(
+            elements,
+            axis_table_df,
+            f"جدول فقرات {axis_name}",
+            normal_style,
+            heading_style,
+            font_name,
+            selected_cols=["رقم الفقرة", "الفقرة", "المتوسط", "النسبة المئوية"],
+            max_rows=100
+        )
+
+        chart_bytes = create_chart_image_bytes(
+            axis_table_df,
+            x_col="الفقرة",
+            y_col="النسبة المئوية",
+            title=f"{axis_name} - النسبة المئوية للفقرات"
+        )
+
+        if chart_bytes is not None:
+            try:
+                chart_img = Image(chart_bytes, width=22 * cm, height=9 * cm)
+                elements.append(chart_img)
+                elements.append(Spacer(1, 0.35 * cm))
+            except Exception:
+                pass
+
+        elements.append(Spacer(1, 0.2 * cm))
+
 
 def build_pdf_report_bytes(
     filtered_df,
@@ -608,6 +698,15 @@ def build_pdf_report_bytes(
         alignment=TA_RIGHT
     )
 
+    summary_style = ParagraphStyle(
+        name="ArabicSummary",
+        parent=styles["BodyText"],
+        fontName=font_name,
+        fontSize=11,
+        leading=16,
+        alignment=TA_RIGHT
+    )
+
     elements = []
 
     banner_path = os.path.join(os.getcwd(), BANNER_FILE)
@@ -615,7 +714,7 @@ def build_pdf_report_bytes(
         try:
             banner = Image(banner_path, width=26 * cm, height=4.0 * cm)
             elements.append(banner)
-            elements.append(Spacer(1, 0.3 * cm))
+            elements.append(Spacer(1, 0.25 * cm))
         except Exception:
             pass
 
@@ -626,9 +725,27 @@ def build_pdf_report_bytes(
     if transport_only:
         elements.append(Paragraph(ar_text("نوع التقرير: تحليل النقل المدرسي فقط"), normal_style))
     elements.append(Paragraph(ar_text(f"تاريخ التصدير: {datetime.now().strftime('%Y-%m-%d %H:%M')}"), normal_style))
-    elements.append(Spacer(1, 0.4 * cm))
+    elements.append(Spacer(1, 0.35 * cm))
+
+    responses_count = len(filtered_df) if filtered_df is not None else 0
 
     if transport_only:
+        avg_val = 0
+        pct_val = 0
+        if transport_summary_df is not None and not transport_summary_df.empty:
+            avg_val = transport_summary_df["المتوسط"].iloc[0]
+            pct_val = transport_summary_df["النسبة المئوية"].iloc[0]
+
+        summary_text = (
+            f"لقد وصلنا من "
+            f"{selected_school_label if selected_school_label != 'جميع المدارس' else 'المدارس المشاركة'} "
+            f"عدد ({responses_count}) من الاستجابات الخاصة بالنقل المدرسي، "
+            f"وبمتوسط عام مقداره ({round(float(avg_val), 2)}) "
+            f"وبنسبة مئوية بلغت ({round(float(pct_val), 2)}%)."
+        )
+        elements.append(Paragraph(ar_text(summary_text), summary_style))
+        elements.append(Spacer(1, 0.35 * cm))
+
         make_pdf_table(
             elements,
             transport_summary_df,
@@ -639,16 +756,50 @@ def build_pdf_report_bytes(
             selected_cols=["عدد المشتركين بالنقل", "المتوسط", "النسبة المئوية"]
         )
 
-        make_pdf_table(
-            elements,
-            transport_question_summary_df,
-            "تفصيل فقرات النقل المدرسي",
-            normal_style,
-            heading_style,
-            font_name,
-            selected_cols=["رقم الفقرة", "الفقرة", "المتوسط", "النسبة المئوية"]
-        )
+        if transport_question_summary_df is not None and not transport_question_summary_df.empty:
+            make_pdf_table(
+                elements,
+                transport_question_summary_df,
+                "تفصيل فقرات النقل المدرسي",
+                normal_style,
+                heading_style,
+                font_name,
+                selected_cols=["رقم الفقرة", "الفقرة", "المتوسط", "النسبة المئوية"],
+                max_rows=100
+            )
+
+            transport_chart = create_chart_image_bytes(
+                transport_question_summary_df,
+                x_col="الفقرة",
+                y_col="النسبة المئوية",
+                title="النقل المدرسي - النسبة المئوية للفقرات"
+            )
+
+            if transport_chart is not None:
+                try:
+                    elements.append(Image(transport_chart, width=22 * cm, height=9 * cm))
+                    elements.append(Spacer(1, 0.3 * cm))
+                except Exception:
+                    pass
+
     else:
+        overall_avg = 0
+        overall_pct = 0
+        if filtered_df is not None and not filtered_df.empty and "overall_avg" in filtered_df.columns:
+            temp_avg = pd.to_numeric(filtered_df["overall_avg"], errors="coerce").mean()
+            overall_avg = 0 if pd.isna(temp_avg) else round(float(temp_avg), 2)
+            overall_pct = score_to_percentage(overall_avg)
+
+        summary_text = (
+            f"لقد وصلنا من "
+            f"{selected_school_label if selected_school_label != 'جميع المدارس' else 'المدارس المشاركة'} "
+            f"عدد ({responses_count}) من الاستجابات، "
+            f"وبمتوسط عام مقداره ({overall_avg}) "
+            f"وبنسبة مئوية بلغت ({overall_pct}%)."
+        )
+        elements.append(Paragraph(ar_text(summary_text), summary_style))
+        elements.append(Spacer(1, 0.35 * cm))
+
         make_pdf_table(
             elements,
             axis_summary_df,
@@ -656,8 +807,23 @@ def build_pdf_report_bytes(
             normal_style,
             heading_style,
             font_name,
-            selected_cols=["المحور", "المتوسط", "النسبة المئوية"]
+            selected_cols=["المحور", "المتوسط", "النسبة المئوية"],
+            max_rows=50
         )
+
+        axis_chart = create_chart_image_bytes(
+            axis_summary_df,
+            x_col="المحور",
+            y_col="النسبة المئوية",
+            title="النسبة المئوية لمتوسطات المحاور"
+        )
+
+        if axis_chart is not None:
+            try:
+                elements.append(Image(axis_chart, width=22 * cm, height=9 * cm))
+                elements.append(Spacer(1, 0.3 * cm))
+            except Exception:
+                pass
 
         make_pdf_table(
             elements,
@@ -674,22 +840,46 @@ def build_pdf_report_bytes(
                 "نسبة الاستجابة",
                 "المتوسط الكلي",
                 "النسبة المئوية"
-            ]
+            ],
+            max_rows=50
         )
 
-        make_pdf_table(
+        school_chart_df = None
+        if school_summary_df is not None and not school_summary_df.empty:
+            school_chart_df = school_summary_df.copy()
+            if "اسم المدرسة" in school_chart_df.columns and "نوع الاستبانة" in school_chart_df.columns:
+                school_chart_df["المدرسة والنوع"] = (
+                    school_chart_df["اسم المدرسة"].astype(str) + " - " + school_chart_df["نوع الاستبانة"].astype(str)
+                )
+
+        if school_chart_df is not None and not school_chart_df.empty:
+            school_chart = create_chart_image_bytes(
+                school_chart_df,
+                x_col="المدرسة والنوع",
+                y_col="النسبة المئوية",
+                title="النسبة المئوية لمتوسطات المدارس"
+            )
+            if school_chart is not None:
+                try:
+                    elements.append(Image(school_chart, width=22 * cm, height=9 * cm))
+                    elements.append(Spacer(1, 0.3 * cm))
+                except Exception:
+                    pass
+
+        elements.append(PageBreak())
+
+        add_axis_details_to_pdf(
             elements,
             question_summary_df,
-            "ملخص الفقرات",
             normal_style,
             heading_style,
-            font_name,
-            selected_cols=["رقم الفقرة", "المحور", "الفقرة", "المتوسط", "النسبة المئوية"]
+            font_name
         )
 
     doc.build(elements)
     output.seek(0)
     return output.getvalue()
+
 
 # =========================
 # Session State
@@ -715,6 +905,7 @@ def init_session():
         if key not in st.session_state:
             st.session_state[key] = value
 
+
 def reset_parent_session():
     st.session_state.logged_in_parent = False
     st.session_state.student_data = None
@@ -730,9 +921,11 @@ def reset_parent_session():
     st.session_state.bus_number = ""
     st.session_state.page = "home"
 
+
 def reset_admin_session():
     st.session_state.logged_in_admin = False
     st.session_state.page = "home"
+
 
 # =========================
 # Header
@@ -753,6 +946,7 @@ def render_header():
     with left_col:
         st.markdown(f'<div class="main-title">{APP_TITLE}</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="sub-title">{SCHOOL_NAME}</div>', unsafe_allow_html=True)
+
 
 # =========================
 # تحميل الملفات
@@ -794,6 +988,7 @@ def ensure_results_file_exists():
 
         pd.DataFrame(columns=columns).to_excel(RESULTS_FILE, index=False)
 
+
 def load_students():
     if not os.path.exists(STUDENTS_FILE):
         return None, f"ملف الطلاب غير موجود: {STUDENTS_FILE}"
@@ -816,6 +1011,7 @@ def load_students():
     except Exception as e:
         return None, f"حدث خطأ أثناء قراءة ملف الطلاب: {e}"
 
+
 def load_results():
     ensure_results_file_exists()
     try:
@@ -823,6 +1019,7 @@ def load_results():
         return df, None
     except Exception as e:
         return None, f"حدث خطأ أثناء قراءة ملف النتائج: {e}"
+
 
 def load_school_totals():
     if not os.path.exists(SCHOOL_TOTALS_FILE):
@@ -841,6 +1038,7 @@ def load_school_totals():
     except Exception as e:
         return None, f"حدث خطأ أثناء قراءة ملف أعداد الطلبة: {e}"
 
+
 def student_already_submitted(student_id):
     df, error = load_results()
     if error or df is None or df.empty or "student_id" not in df.columns:
@@ -848,6 +1046,7 @@ def student_already_submitted(student_id):
 
     df["student_id"] = df["student_id"].astype(str).str.strip()
     return str(student_id).strip() in df["student_id"].values
+
 
 # =========================
 # المتوسطات
@@ -866,6 +1065,7 @@ def get_axis_average(student, axis_name):
         return 0.0
     return round(sum(scores) / len(scores), 2)
 
+
 def get_overall_average(student):
     current_survey_questions = get_survey_questions_by_student(student)
     all_questions = [q for axis in current_survey_questions.values() for q in axis]
@@ -879,6 +1079,7 @@ def get_overall_average(student):
     if not scores:
         return 0.0
     return round(sum(scores) / len(scores), 2)
+
 
 # =========================
 # حفظ النتائج
@@ -937,6 +1138,7 @@ def save_survey():
     except Exception as e:
         return False, f"حدث خطأ أثناء حفظ النتائج: {e}"
 
+
 # =========================
 # التحليل
 # =========================
@@ -978,6 +1180,7 @@ def build_question_summary(filtered_df):
 
     return pd.DataFrame(rows)
 
+
 def build_axis_summary(filtered_df):
     if filtered_df.empty:
         return pd.DataFrame(columns=["المحور", "المتوسط", "النسبة المئوية"])
@@ -1009,6 +1212,7 @@ def build_axis_summary(filtered_df):
         })
 
     return pd.DataFrame(rows)
+
 
 def build_school_summary(df):
     if "school" not in df.columns or df.empty:
@@ -1081,6 +1285,7 @@ def build_school_summary(df):
         "النسبة المئوية"
     ]]
 
+
 def build_transport_summary(filtered_df):
     if filtered_df.empty:
         return pd.DataFrame(columns=["عدد المشتركين بالنقل", "المتوسط", "النسبة المئوية"])
@@ -1105,6 +1310,7 @@ def build_transport_summary(filtered_df):
         "النسبة المئوية": round(pct_val, 2)
     }])
 
+
 def build_transport_question_summary(filtered_df):
     if filtered_df.empty:
         return pd.DataFrame(columns=["رقم الفقرة", "الفقرة", "المتوسط", "النسبة المئوية"])
@@ -1120,6 +1326,7 @@ def build_transport_question_summary(filtered_df):
         return pd.DataFrame(columns=["رقم الفقرة", "الفقرة", "المتوسط", "النسبة المئوية"])
 
     return question_summary[["رقم الفقرة", "الفقرة", "المتوسط", "النسبة المئوية"]].reset_index(drop=True)
+
 
 # =========================
 # الصفحات
@@ -1161,6 +1368,7 @@ def render_home():
             st.session_state.page = "admin_login"
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
+
 
 def render_parent_login():
     render_header()
@@ -1211,6 +1419,7 @@ def render_parent_login():
         st.session_state.notes = ""
         st.session_state.page = "student_info"
         st.rerun()
+
 
 def render_student_info_page():
     student = st.session_state.student_data
@@ -1316,6 +1525,7 @@ def render_student_info_page():
 
             st.session_state.page = "survey"
             st.rerun()
+
 
 def render_survey_page():
     student = st.session_state.student_data
@@ -1431,6 +1641,7 @@ def render_survey_page():
                 else:
                     st.error(msg)
 
+
 def render_admin_login():
     render_header()
     st.markdown(
@@ -1454,6 +1665,7 @@ def render_admin_login():
             st.rerun()
         else:
             st.error("بيانات دخول الإدارة غير صحيحة")
+
 
 def render_admin_dashboard():
     render_header()
@@ -1840,6 +2052,7 @@ def render_admin_dashboard():
                 elif not PDF_AVAILABLE:
                     st.caption("مكتبة PDF غير متوفرة")
 
+
 # =========================
 # التشغيل
 # =========================
@@ -1857,3 +2070,4 @@ elif st.session_state.page == "admin_login":
     render_admin_login()
 elif st.session_state.page == "admin_dashboard":
     render_admin_dashboard()
+    
