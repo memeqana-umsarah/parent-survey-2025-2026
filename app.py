@@ -5,6 +5,7 @@ from io import BytesIO
 import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
+from matplotlib import font_manager
 
 # دعم الرسم البياني التفاعلي - اختياري
 try:
@@ -37,6 +38,7 @@ try:
 except ImportError:
     PDF_AVAILABLE = False
 
+plt.rcParams["axes.unicode_minus"] = False
 
 # =========================
 # إعدادات الصفحة
@@ -428,6 +430,36 @@ def register_arabic_font():
     return "Helvetica"
 
 
+def get_matplotlib_ar_font():
+    font_files = [
+        "Amiri-Regular.ttf",
+        "NotoNaskhArabic-Regular.ttf",
+        "Cairo-Regular.ttf"
+    ]
+
+    for file_name in font_files:
+        font_path = os.path.join(os.getcwd(), file_name)
+        if os.path.exists(font_path):
+            try:
+                font_manager.fontManager.addfont(font_path)
+                font_name = font_manager.FontProperties(fname=font_path).get_name()
+                plt.rcParams["font.family"] = font_name
+                return font_name
+            except Exception:
+                continue
+
+    candidates = ["Amiri", "Noto Naskh Arabic", "Cairo", "Arial", "DejaVu Sans"]
+    for name in candidates:
+        try:
+            plt.rcParams["font.family"] = name
+            return name
+        except Exception:
+            continue
+
+    plt.rcParams["font.family"] = "DejaVu Sans"
+    return "DejaVu Sans"
+
+
 def get_student_survey_type(student):
     survey_type = normalize_text(student.get("survey_type", "E1"))
     if survey_type not in SURVEY_TEMPLATES:
@@ -513,7 +545,7 @@ def shorten_text(value, max_len=40):
     return value
 
 
-def create_chart_image_bytes(df, x_col, y_col, title, max_labels=12):
+def create_chart_image_bytes(df, x_col, y_col, title, max_labels=12, wrap_width=22):
     if df is None or df.empty or x_col not in df.columns or y_col not in df.columns:
         return None
 
@@ -522,25 +554,56 @@ def create_chart_image_bytes(df, x_col, y_col, title, max_labels=12):
     if len(work_df) > max_labels:
         work_df = work_df.head(max_labels)
 
-    work_df[x_col] = work_df[x_col].astype(str)
+    work_df[x_col] = work_df[x_col].astype(str).fillna("")
     work_df[y_col] = pd.to_numeric(work_df[y_col], errors="coerce").fillna(0)
 
-    fig, ax = plt.subplots(figsize=(12, 5))
-    ax.bar(work_df[x_col], work_df[y_col])
+    def shorten_label(text, max_len=wrap_width):
+        text = str(text).strip()
+        if len(text) <= max_len:
+            return text
+        return text[:max_len] + "..."
 
-    ax.set_title(title, fontsize=14)
-    ax.set_ylabel(y_col, fontsize=11)
+    font_name = get_matplotlib_ar_font()
+
+    x_labels_raw = [shorten_label(x, wrap_width) for x in work_df[x_col].tolist()]
+    x_labels = [ar_text(x) for x in x_labels_raw]
+    y_values = work_df[y_col].tolist()
+
+    fig, ax = plt.subplots(figsize=(12, 5.8))
+    ax.bar(range(len(y_values)), y_values)
+
+    ax.set_title(ar_text(title), fontsize=15, fontname=font_name, pad=16)
+    ax.set_ylabel(ar_text(y_col), fontsize=11, fontname=font_name)
     ax.set_xlabel("")
-    ax.tick_params(axis="x", rotation=35, labelsize=9)
-    ax.tick_params(axis="y", labelsize=9)
 
-    for i, val in enumerate(work_df[y_col]):
-        ax.text(i, float(val) + 0.5, str(round(float(val), 2)), ha="center", va="bottom", fontsize=8)
+    ax.set_xticks(range(len(x_labels)))
+    ax.set_xticklabels(x_labels, rotation=20, ha="right", fontsize=9, fontname=font_name)
+
+    for label in ax.get_yticklabels():
+        label.set_fontname(font_name)
+        label.set_fontsize(9)
+
+    for i, val in enumerate(y_values):
+        ax.text(
+            i,
+            float(val) + 0.8,
+            str(round(float(val), 2)),
+            ha="center",
+            va="bottom",
+            fontsize=8,
+            fontname=font_name
+        )
+
+    upper_limit = max(y_values) + 12 if len(y_values) > 0 else 100
+    if upper_limit < 10:
+        upper_limit = 10
+    ax.set_ylim(0, upper_limit)
+    ax.grid(axis="y", linestyle="--", alpha=0.3)
 
     plt.tight_layout()
 
     img_buffer = BytesIO()
-    plt.savefig(img_buffer, format="png", dpi=200, bbox_inches="tight")
+    plt.savefig(img_buffer, format="png", dpi=220, bbox_inches="tight")
     plt.close(fig)
     img_buffer.seek(0)
     return img_buffer
@@ -2070,4 +2133,3 @@ elif st.session_state.page == "admin_login":
     render_admin_login()
 elif st.session_state.page == "admin_dashboard":
     render_admin_dashboard()
-    
