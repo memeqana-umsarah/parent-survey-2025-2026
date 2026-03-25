@@ -6,3 +6,4 @@ plotly
 reportlab
 arabic-reshaper
 python-bidi
+matplotlib
