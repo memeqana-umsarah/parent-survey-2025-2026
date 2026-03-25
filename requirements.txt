@@ -1,8 +1,8 @@
 streamlit
 pandas
 openpyxl
-pillow
 plotly
+matplotlib
 reportlab
 arabic-reshaper
 python-bidi
